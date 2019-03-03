@@ -1,7 +1,6 @@
-const  config = require("../config.json")
 const { createClient } = require("webdav")
  
-const client = createClient(
+const client = config => createClient(
     `${config.url}:${config.port}`,
     {
         username: config.user,

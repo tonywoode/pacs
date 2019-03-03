@@ -1,13 +1,8 @@
 const config = require("../config.json")
-const client = require("./client")
+const client = require("./client")(config)
 const Task = require("data.task")
+const clientServicesWith = require("./client-services.js")
 
-//promise to task
-const nasDirListing = new Task((rej, res) =>
-  client
-    .getDirectoryContents(config.folder)
-    .then(res)
-    .catch(rej)
-)
+const clientServices = clientServicesWith(client, config)
 
-nasDirListing.fork(console.log, console.log)
+clientServices.nasDirListing.fork(console.error, console.log)
