@@ -1,5 +1,4 @@
-const { createClient } = require("webdav")
- 
+'use strict'
 const client = (webdavClient, config) => webdavClient.createClient(
     `${config.url}:${config.port}`,
     {

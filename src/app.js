@@ -1,14 +1,13 @@
 'use strict'
-const config = require("../config.json")
 const webdavClient = require("webdav")
+const webdavServer = require("webdav-server").v2
+const config = require("../config.json")
 const client = require("./client")(webdavClient, config)
+const server = require("./server")(webdavServer)
 
-const Task = require("data.task")
+const clientTaskified = require("./taskifyPromiseModule")(client)
+console.log(clientTaskified)
+console.log(clientTaskified.getDirectoryContents.toString())
+clientTaskified.getDirectoryContents(config.folder).fork(console.error, console.log)
+clientTaskified.stat('folder1').fork(console.error, console.log)
 
-const clientServicesWith = require("./client-services.js")
-const clientServices = clientServicesWith(client, config)
-
-console.log("WEBDAV CLIENT SUPPORTS:")
-console.log(client)
-
-clientServices.nasDirListing.fork(console.error, console.log)
