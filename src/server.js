@@ -1,9 +1,8 @@
 "use strict"
 
-module.exports = webdavServer => {
+module.exports = webdavServer => config => {
   const server = new webdavServer.WebDAVServer({
-    port: 1900
-  })
+    config  })
 
   server.rootFileSystem().addSubTree(server.createExternalContext(), {
     'folder1': {                                // /folder1
@@ -27,5 +26,6 @@ module.exports = webdavServer => {
     console.log(arg.responseBody)
     next()
   })
-  server.start(() => console.log("READY"))
+  server.start(() => console.log("** Webdav Server running ***"))
+  return server
 }

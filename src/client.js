@@ -1,5 +1,5 @@
 'use strict'
-const client = (webdavClient, config) => webdavClient.createClient(
+const client = webdavClient => config => webdavClient.createClient(
     `${config.url}:${config.port}`,
     {
         username: config.user,
