@@ -15,9 +15,6 @@ const clientTaskified = require(`${src}taskifyPromiseModule`)(client)
 //  server.stop()
 //  })
 //    .catch(console.log)
-const newError = msg => {
-  throw new Error(msg)
-}
 
 describe(`client`, () => {
   afterEach(() => server.stop())
@@ -31,10 +28,10 @@ describe(`client`, () => {
           expect(res.filename).to.equal(file)          
           done()
         }
-        )
-
+      )
     })
-  //so we have a server running on port 1900 let's run a stat command to get a listing eh
+
   })
+
 })
 
