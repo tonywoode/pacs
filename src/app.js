@@ -1,10 +1,14 @@
 'use strict'
 //const webdavClient = require("webdav")
 const webdav = require('webdav-server').v2
+const fs = require('fs')
 
 const server = new webdav.WebDAVServer({
-  port: 1900
-
+  port: 1900,
+  https: {
+    key: fs.readFileSync('./certs/key.pem'),
+    cert: fs.readFileSync('./certs/cert.pem')
+  }
 })
 
 server.setFileSystem('', new webdav.PhysicalFileSystem('./specs/testDir'), success => {
