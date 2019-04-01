@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/app.js",
-    "test": "mocha --require ./specs/init.js $(eval find specs -name '*spec.js')"
+    "test": "mocha --require ./specs/init.js $(eval find specs -name '*spec.js')",
+    "packageParallels": "pkg src/app.js -t win --out-path /Volumes/[C]\\ My\\ Boot\\ Camp/Emulators/PACS"
   },
   "author": "",
   "license": "ISC",
@@ -19,6 +20,7 @@
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "mocha": "^6.0.2",
+    "pkg": "^4.3.7",
     "sinon": "^7.2.6",
     "sinon-chai": "^3.3.0"
   }
