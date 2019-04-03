@@ -6,20 +6,12 @@ const testDir = './specs/testDir'
 //const testWinDir = "F:/Computer Classics/c64 Games"
 const testWinDir = "F:/Nintendo Games/N64 Games/GoodN64_314_GM"
 
-
-app.all('/', (req,res) => {
-  console.log(req)
-  res.send("hello there")
-
-})
-// or just
-app.propfind('/', (req,res) => {
-  console.log(req)
-  res.send("hello there")
-
-})
+//app.all('/', (req,res, next) => { console.log(req); res.send("hello there"); next() })
+//app.propfind('/', (req,res) => { console.log(req); res.send("hello there"); })
+const alt = true
 server.setFileSystem('', new webdav.PhysicalFileSystem(testDir), console.log("ready"))
-app.use(webdav.extensions.express('', server))
+app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next() })
+alt && app.use(webdav.extensions.express('', server))
 
 
 //server.afterRequest((arg, next) => {
