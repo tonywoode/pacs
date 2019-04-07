@@ -13,6 +13,8 @@
   "dependencies": {
     "data.task": "^3.1.2",
     "express": "^4.16.4",
+    "express-basic-auth": "^1.1.6",
+    "request": "^2.88.0",
     "webdav": "^2.5.0",
     "webdav-server": "^2.4.6"
   },
