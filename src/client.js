@@ -1,6 +1,6 @@
 'use strict'
 const client = webdavClient => config => webdavClient.createClient(
-    `${config.url}:${config.port}`,
+    `${config.localIp}:${config.port}`,
     {
         username: config.user,
         password: config.pass
