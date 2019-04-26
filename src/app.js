@@ -14,15 +14,20 @@ const testDir = './specs/testDir'
 //app.all('/', (req,res, next) => { console.log(req); res.send("hello there"); next() })
 //app.propfind('/', (req,res) => { console.log(req); res.send("hello there"); })
 
+// we must enable persistent connections in node, as underlying this all is the 
+// http lib's default of http 1.0-like new connections for each request
+// https://stackoverflow.com/a/38614839/3536094
+const keepAliveAgent = new http.Agent({ keepAlive: true });
 const testConnection = require("./testConnection")
-const alt = false
+
+//standard basic auth conversion
 const { user, pass } = config
 const data = `${user}:${pass}`
 const base64data = Buffer.from(data).toString('base64')
 const headerAuth = `Basic ${base64data}`
 
 app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next() })
-testConnection().then(result => {
+testConnection(keepAliveAgent).then(result => {
   console.log("result is " + result)
   if (result === false) {
   server.setFileSystem('', new webdav.PhysicalFileSystem(testDir), console.log("ready"))
@@ -34,10 +39,6 @@ else {
   //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
   //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
 
-    // we must enable persistent connections in node, as underlying this all is the 
-    // http lib's default of http 1.0-like new connections for each request
-    // https://stackoverflow.com/a/38614839/3536094
-    const keepAliveAgent = new http.Agent({ keepAlive: true });
     var myProxy = proxy('/', {
       auth : `${config.user}:${config.pass}`,
       target: `${config.localIp}:${config.port}`,

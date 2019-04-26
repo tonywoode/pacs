@@ -1,7 +1,6 @@
 'use strict'
 const http = require('http')
-const keepAliveAgent = new http.Agent({ keepAlive: true });
-const client = webdavClient => config => webdavClient.createClient(
+const client = webdavClient => config => keepAliveAgent => webdavClient.createClient(
     `${config.localIp}:${config.port}`,
     {
         username: config.user,
