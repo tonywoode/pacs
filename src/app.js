@@ -18,7 +18,10 @@ const testDir = './specs/testDir'
 // http lib's default of http 1.0-like new connections for each request
 // https://stackoverflow.com/a/38614839/3536094
 const keepAliveAgent = new http.Agent({ keepAlive: true });
-const testConnection = require("./testConnection")
+const testConnection = require("./testConnection")(config)
+
+const webdavClient = require("webdav")
+const client = require("./client")(webdavClient)(config)(keepAliveAgent)
 
 //standard basic auth conversion
 const { user, pass } = config
@@ -27,7 +30,7 @@ const base64data = Buffer.from(data).toString('base64')
 const headerAuth = `Basic ${base64data}`
 
 app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next() })
-testConnection(keepAliveAgent).then(result => {
+testConnection(client).then(result => {
   console.log("result is " + result)
   if (result === false) {
   server.setFileSystem('', new webdav.PhysicalFileSystem(testDir), console.log("ready"))
