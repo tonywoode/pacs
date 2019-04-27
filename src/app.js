@@ -41,7 +41,7 @@ else {
 
     var myProxy = proxy('/', {
       auth : `${config.user}:${config.pass}`,
-      target: `${config.localIp}:${config.port}`,
+      target: `${config[config.whichIp]}:${config.port}`,
       agent: keepAliveAgent,
       logLevel: 'debug'
     })

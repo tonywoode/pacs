@@ -1,7 +1,7 @@
 'use strict'
 const http = require('http')
 const client = webdavClient => config => keepAliveAgent => webdavClient.createClient(
-    `${config.localIp}:${config.port}`,
+  `${config[config.whichIp]}:${config.port}`,
     {
         username: config.user,
       password: config.pass,
