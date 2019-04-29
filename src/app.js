@@ -56,10 +56,10 @@ app.use(myProxy)
    const pathey = req.path
    const decoded = decodeURIComponent(req.path)
    if (pathey.includes('.DS_Store')){next()}
-   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config.localFolder}${pathey}`)
+   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config.localFolder}${decoded}`)
    //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config.localFolder}${pathey}`).then(next()).catch(err => console.log(err))
    client.getFileContents(decoded, { format: "text" })
-     .then( result => console.log(result))//data => require('fs.writeFileSync')(`${config.localFolder}${pathey}`, data))
+     .then( data => fs.writeFileSync(`${config.localFolder}${decoded}`, data))
      .then(next())
      .catch(err => console.log(err))
  })
