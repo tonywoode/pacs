@@ -4,11 +4,10 @@ const app = require('express')()
 const request = require('request');
 const proxy = require('http-proxy-middleware')
 const http = require('http')
-
+const fs = require('fs')
 const server = new webdav.WebDAVServer()
 const config = require("../config.json")
 
-const testDir = './specs/testDir'
 //const testWinDir = "F:/Nintendo Games/N64 Games/GoodN64_314_GM"
 
 //app.all('/', (req,res, next) => { console.log(req); res.send("hello there"); next() })
@@ -33,7 +32,7 @@ app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next()
 testConnection(client).then(result => {
   console.log("result is " + result)
   if (result === false) {
-  server.setFileSystem('', new webdav.PhysicalFileSystem(testDir), console.log("ready"))
+  server.setFileSystem('', new webdav.PhysicalFileSystem(config.localFolder), console.log("ready"))
   app.use(webdav.extensions.express('', server))
 }
 else { 
@@ -51,7 +50,20 @@ else {
 app.use(myProxy)
 }
 })
-  //  app.all('*', (req,res) => {
+
+
+ app.get('*', (req,res, next) => {
+   const pathey = req.path
+   const decoded = decodeURIComponent(req.path)
+   if (pathey.includes('.DS_Store')){next()}
+   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config.localFolder}${pathey}`)
+   //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config.localFolder}${pathey}`).then(next()).catch(err => console.log(err))
+   client.getFileContents(decoded, { format: "text" })
+     .then( result => console.log(result))//data => require('fs.writeFileSync')(`${config.localFolder}${pathey}`, data))
+     .then(next())
+     .catch(err => console.log(err))
+ })
+//  app.all('*', (req,res) => {
   //    //req.headers.Authorization = headerAuth
   //    req.headers.connection = "keep-alive"
   //    //console.log(req.headers.Authorization)
