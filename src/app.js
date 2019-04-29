@@ -6,6 +6,11 @@ const proxy = require('http-proxy-middleware')
 const http = require('http')
 const fs = require('fs')
 const server = new webdav.WebDAVServer()
+const {promisify} = require('util')
+const mkdirp = require('mkdirp')
+const mkdirpsync = require('mkdirpsync')
+const mkdirppromise = promisify(mkdirp)
+
 const config = require("../config.json")
 
 //const testWinDir = "F:/Nintendo Games/N64 Games/GoodN64_314_GM"
@@ -58,8 +63,17 @@ app.use(myProxy)
    if (pathey.includes('.DS_Store')){next()}
    console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config.localFolder}${decoded}`)
    //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config.localFolder}${pathey}`).then(next()).catch(err => console.log(err))
-   client.getFileContents(decoded, { format: "text" })
-     .then( data => fs.writeFileSync(`${config.localFolder}${decoded}`, data))
+   client.stat(decoded)
+     .then( stat => { 
+       console.log("its a " + stat.type + " so, presuming thats a file,i'm going to mkdirp " + config.localFolder + require('path').dirname(decoded))
+       console.log("is it a file?" + (stat.type === "file"))
+       return stat.type === "file" && mkdirpsync(config.localFolder + require('path').dirname(decoded)) //and what if you actually go want to GET a dir?     
+     })
+     .then( _ => client.getFileContents(decoded, { format: "text" }))
+     .then( data => { 
+       console.log( "data is " + data)
+       fs.writeFileSync(`${config.localFolder}${decoded}`, data)
+     })
      .then(next())
      .catch(err => console.log(err))
  })
