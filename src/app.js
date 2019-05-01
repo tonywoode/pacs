@@ -72,11 +72,19 @@ app.use(myProxy)
          //.catch( err => console.log(err))
        )
      })
-     .then( _ => //client.getFileContents(decoded, { format: "text" }))
-       {
-       fs.existsSync(config[config.localFolder] + decoded) && console.log(config[config.localFolder] + decoded + "already exists, no need to retrieve it")
-       return client.createReadStream(decoded)
-       .pipe(fs.createWriteStream(`${config[config.localFolder]}${decoded}`))
+     .then( _ => {
+       if (fs.existsSync(config[config.localFolder] + decoded)) {
+        console.log(config[config.localFolder] + decoded + "already exists, the file is local so return that and get outta here")
+         return fs.createReadStream(`${config[config.localFolder]}${decoded}`).pipe(res)
+         //not here return next()
+       } else { //the file isn't locally so please make it so
+        return client.createReadStream(decoded)
+        .pipe(fs.createWriteStream(`${config[config.localFolder]}${decoded}`))
+       }
+
+
+
+
        //   .then( data => { 
        //console.log( "data is " + data)
        //fs.writeFileSync(`${config[config.localFolder]}${decoded}`, data)
