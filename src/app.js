@@ -35,7 +35,7 @@ app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next()
 testConnection(client).then(result => {
   console.log("result is " + result)
   if (result === false) {
-  server.setFileSystem('', new webdav.PhysicalFileSystem(config.localFolder), console.log("ready"))
+  server.setFileSystem('', new webdav.PhysicalFileSystem(config[config.localFolder]), console.log("ready"))
   app.use(webdav.extensions.express('', server))
 }
 else { 
@@ -58,23 +58,30 @@ app.use(myProxy)
  app.get('*', (req,res, next) => {
    const pathey = req.path
    const decoded = decodeURIComponent(req.path)
-   if (pathey.includes('.DS_Store')){next()}
-   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config.localFolder}${decoded}`)
-   //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config.localFolder}${pathey}`).then(next()).catch(err => console.log(err))
+   if (pathey.includes('.DS_Store')){console.log("trying to ignore ds store file"); return next()}
+   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config[config.localFolder]}${decoded}`)
+   //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config[config.localFolder]}${pathey}`).then(next()).catch(err => console.log(err))
    client.stat(decoded)
      .then( stat => { 
-       console.log("its a " + stat.type + " so, presuming thats a file,i'm going to mkdirp " + config.localFolder + require('path').dirname(decoded))
+       console.log("its a " + stat.type + " so, presuming thats a file,i might mkdirp " + config[config.localFolder] + require('path').dirname(decoded))
        console.log("is it a file?" + (stat.type === "file"))
-       return stat.type === "file" && mkdirp(config.localFolder + require('path').dirname(decoded)) //and what if you actually go want to GET a dir?     
+       return stat.type === "file" && (
+          mkdirp(config[config.localFolder] + require('path').dirname(decoded)) //and what if you actually go want to GET a dir?     
+         // fs.promises.access(config[config.localFolder] + require('path').dirname(decoded), fs.constants.R_OK)
+         // .then( _ =>  mkdirp(config[config.localFolder] + require('path').dirname(decoded)) )//and what if you actually go want to GET a dir?     
+         //.catch( err => console.log(err))
+       )
      })
      .then( _ => //client.getFileContents(decoded, { format: "text" }))
-       client.createReadStream(decoded)
-       .pipe(fs.createWriteStream(`${config.localFolder}${decoded}`))
+       {
+       fs.existsSync(config[config.localFolder] + decoded) && console.log(config[config.localFolder] + decoded + "already exists, no need to retrieve it")
+       return client.createReadStream(decoded)
+       .pipe(fs.createWriteStream(`${config[config.localFolder]}${decoded}`))
        //   .then( data => { 
        //console.log( "data is " + data)
-       //fs.writeFileSync(`${config.localFolder}${decoded}`, data)
+       //fs.writeFileSync(`${config[config.localFolder]}${decoded}`, data)
        //})
-     )
+ })
      .then(next())
      .catch(err => console.log(err))
  })
