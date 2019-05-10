@@ -59,6 +59,9 @@ const proxyOptions = {
   console.log("res method is " + res.method)
   console.log("res params is " + res.params)
   console.log("res body is " + res.body)
+  proxyRes.on('data', function (chunk) {
+    console.log(chunk.toString())
+  })
   }
 }
 
