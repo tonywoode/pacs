@@ -27,7 +27,6 @@ console.error = (...args) => {
   process.stderr.write(text)
 }
 
-
 // we must enable persistent connections in node, as underlying this all is the
 // http lib's default of http 1.0-like new connections for each request
 // https://stackoverflow.com/a/38614839/3536094
@@ -50,7 +49,17 @@ const proxyOptions = {
   auth: `${config.user}:${config.pass}`,
   target: `${ip}:${config.port}`,
   agent: keepAliveAgent,
-  logLevel: "debug"
+  logLevel: "debug",
+  onProxyRes: (proxyRes, req, res) => {
+  console.log("proxyRes header is " + JSON.stringify(proxyRes.headers, null, 2))
+  console.log("proxyRes method is " + proxyRes.method)
+  console.log("proxyRes params is " + proxyRes.params)
+  console.log("proxyRes body is " + proxyRes.body)
+  console.log("res header is " + res.headers)
+  console.log("res method is " + res.method)
+  console.log("res params is " + res.params)
+  console.log("res body is " + res.body)
+  }
 }
 
 testConnection(client).then(result => {
@@ -112,7 +121,7 @@ app.get("*", (req, res, next) => {
     .catch(err => console.log(err))
 })
 
-app.use((req, res, next) => {
+//app.use((req, res, next) => {
   //req.headers.Authorization = headerAuth
   //req.headers.connection = "keep-alive"
   //console.log(req.headers.Authorization)
@@ -120,13 +129,8 @@ app.use((req, res, next) => {
   //    var newurl = `${config.localIp}:${config.port}${req.path}`
   //  console.log("newurl is " + newurl)
   //  req.pipe(request(newurl)).pipe(res)
-  //  want to print out responses as easily as this:
-  console.log("res header is " + res.headers)
-  console.log("res method is " + res.method)
-  console.log("res params is " + res.params)
-  console.log("res body is " + res.body)
-  next()
-})
+  //next()
+  //})
 
 //server.afterRequest((arg, next) => {
 //    // Display the method, the URI, the returned status code and the returned message
@@ -144,4 +148,5 @@ app.use(function(err, req, res, next) {
   console.error(err)
   res.status(500).send("Something broke!")
 })
+
 app.listen(1900)
