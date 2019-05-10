@@ -10,6 +10,23 @@ const { promisify } = require("util")
 const mkdirp = require("mkdirp-promise")
 const {dirname} = require("path")
 const config = require("../config.json")
+const util = require('util')
+
+//tee output to console and to a logfile https://stackoverflow.com/a/30578473/3536094
+const logFile           = './pacs_logfile.txt'
+const logStream         = fs.createWriteStream(logFile)
+console.log = (...args) => {
+  const text = util.format.apply(this, args) + '\n'
+  logStream.write(text)
+  process.stdout.write(text)
+}
+
+console.error = (...args) => {
+  const text = util.format.apply(this, args) + '\n'
+  logStream.write(text)
+  process.stderr.write(text)
+}
+
 
 // we must enable persistent connections in node, as underlying this all is the
 // http lib's default of http 1.0-like new connections for each request
@@ -29,12 +46,12 @@ const headerAuth = `Basic ${base64data}`
 const ip = config[config.whichIp]
 const localFolder = config[config.localFolder]
 
-const theProxy = proxy({
-        auth: `${config.user}:${config.pass}`,
-        target: `${ip}:${config.port}`,
-        agent: keepAliveAgent,
-        logLevel: "debug"
-})
+const proxyOptions = {
+  auth: `${config.user}:${config.pass}`,
+  target: `${ip}:${config.port}`,
+  agent: keepAliveAgent,
+  logLevel: "debug"
+}
 
 testConnection(client).then(result => {
   console.log("result is " + result)
@@ -48,7 +65,7 @@ testConnection(client).then(result => {
   } else {
     //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
     //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
-    var myProxy = proxy("/", theProxy)
+    var myProxy = proxy("/", proxyOptions)
     app.use(myProxy)
   }
 })
@@ -82,15 +99,14 @@ app.get("*", (req, res, next) => {
         //.catch( err => console.log(err))
       )
     })
-    .then(_ => fs.promises.access(pathToAsset, fs.constants.R_OK))
+    .then(_ => fs.promises.access(pathToAsset, fs.constants.W_OK)) //we only want to do this at the start when range = 0-.*
     .then(_ => {
       console.log(`${pathToAsset} already exists, the file is local so return that and get outta here`)
-      fs.createReadStream(`${pathToAsset}`).pipe(res)
-      return next()
+      //fs.createReadStream(pathToAsset).pipe(res)
     })
     .catch(_ => {
       console.log(pathToAsset + " needs copying locally")
-      return client.createReadStream(decoded).pipe(fs.createWriteStream(`${pathToAsset}`).pipe(res))
+      return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
     })
     .then(next())
     .catch(err => console.log(err))
