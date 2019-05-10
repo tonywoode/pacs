@@ -1,25 +1,20 @@
-'use strict'
-const webdav = require('webdav-server').v2
-const app = require('express')()
-const request = require('request');
-const proxy = require('http-proxy-middleware')
-const http = require('http')
-const fs = require('fs')
+"use strict"
+const webdav = require("webdav-server").v2
+const app = require("express")()
+const request = require("request")
+const proxy = require("http-proxy-middleware")
+const http = require("http")
+const fs = require("fs")
 const server = new webdav.WebDAVServer()
-const {promisify} = require('util')
-const mkdirp = require('mkdirp-promise')
-
+const { promisify } = require("util")
+const mkdirp = require("mkdirp-promise")
+const {dirname} = require("path")
 const config = require("../config.json")
 
-//const testWinDir = "F:/Nintendo Games/N64 Games/GoodN64_314_GM"
-
-//app.all('/', (req,res, next) => { console.log(req); res.send("hello there"); next() })
-//app.propfind('/', (req,res) => { console.log(req); res.send("hello there"); })
-
-// we must enable persistent connections in node, as underlying this all is the 
+// we must enable persistent connections in node, as underlying this all is the
 // http lib's default of http 1.0-like new connections for each request
 // https://stackoverflow.com/a/38614839/3536094
-const keepAliveAgent = new http.Agent({ keepAlive: true });
+const keepAliveAgent = new http.Agent({ keepAlive: true })
 const testConnection = require("./testConnection")(config)
 
 const webdavClient = require("webdav")
@@ -28,95 +23,98 @@ const client = require("./client")(webdavClient)(config)(keepAliveAgent)
 //standard basic auth conversion
 const { user, pass } = config
 const data = `${user}:${pass}`
-const base64data = Buffer.from(data).toString('base64')
+const base64data = Buffer.from(data).toString("base64")
 const headerAuth = `Basic ${base64data}`
 
-app.use( (req, res, next) => { console.log('%s %s', req.method, req.url); next() })
+const ip = config[config.whichIp]
+const localFolder = config[config.localFolder]
+
+const theProxy = proxy({
+        auth: `${config.user}:${config.pass}`,
+        target: `${ip}:${config.port}`,
+        agent: keepAliveAgent,
+        logLevel: "debug"
+})
+
 testConnection(client).then(result => {
   console.log("result is " + result)
   if (result === false) {
-  server.setFileSystem('', new webdav.PhysicalFileSystem(config[config.localFolder]), console.log("ready"))
-  app.use(webdav.extensions.express('', server))
-}
-else { 
-  // option1: https://stackoverflow.com/a/16924410/3536094 or rather: https://stackoverflow.com/a/20539239/3536094
-  //error handling if the remote server is offline will need fixing though: though http://stackoverflow.com/a/20198377/132208
-  //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
-  //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
-
-    var myProxy = proxy('/', {
-      auth : `${config.user}:${config.pass}`,
-      target: `${config[config.whichIp]}:${config.port}`,
-      agent: keepAliveAgent,
-      logLevel: 'debug'
-    })
-app.use(myProxy)
-}
+    server.setFileSystem(
+      "",
+      new webdav.PhysicalFileSystem(localFolder),
+      console.log("ready")
+    )
+    app.use(webdav.extensions.express("", server))
+  } else {
+    //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
+    //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
+    var myProxy = proxy("/", theProxy)
+    app.use(myProxy)
+  }
 })
 
+app.use((req, res, next) => {
+  console.log("%s %s", req.method, decodeURIComponent(req.path))
+  console.log("req header: " + JSON.stringify(req.headers, null, 2))
+  console.log("req params: " + JSON.stringify(req.params, null, 2))
+  console.log("req body: " + req.body)
+  next()
+})
 
- app.get('*', (req,res, next) => {
-   const pathey = req.path
-   const decoded = decodeURIComponent(req.path)
-   if (pathey.includes('.DS_Store')){console.log("trying to ignore ds store file"); return next()}
-   console.log(`going to copy file from ${config[config.whichIp]}:${config.port}${req.path} to ${config[config.localFolder]}${decoded}`)
-   //   client.copyFile(`${config[config.whichIp]}:${config.port}${req.path}`, req.headers.Destination = `${config[config.localFolder]}${pathey}`).then(next()).catch(err => console.log(err))
-   client.stat(decoded)
-     .then( stat => { 
-       console.log("its a " + stat.type + " so, presuming thats a file,i might mkdirp " + config[config.localFolder] + require('path').dirname(decoded))
-       console.log("is it a file?" + (stat.type === "file"))
-       return stat.type === "file" && (
-          mkdirp(config[config.localFolder] + require('path').dirname(decoded)) //and what if you actually go want to GET a dir?     
-         // fs.promises.access(config[config.localFolder] + require('path').dirname(decoded), fs.constants.R_OK)
-         // .then( _ =>  mkdirp(config[config.localFolder] + require('path').dirname(decoded)) )//and what if you actually go want to GET a dir?     
-         //.catch( err => console.log(err))
-       )
-     })
-     .then( _ => {
-        fs.promises.access(config[config.localFolder] + decoded, fs.constants.R_OK)
-          .then( _ => { 
-           console.log(config[config.localFolder] + decoded + "already exists, the file is local so return that and get outta here")
-           return fs.createReadStream(`${config[config.localFolder]}${decoded}`).pipe(res)
-         })
-          .catch( _ => {
-            console.log( config[config.localFolder] + decoded + " isn't locally, so please make it so")
-            return client.createReadStream(decoded)
-            .pipe(fs.createWriteStream(`${config[config.localFolder]}${decoded}`))
-          })
+//ignore mame assets for now
+//app.propfind("/Games/MAME", (req, res, next) => res.status(204).send())
 
+app.get("*", (req, res, next) => {
+  const decoded = decodeURIComponent(req.path)
+  const pathToAsset = localFolder + decoded
+  const assetsFolder = localFolder + dirname(decoded)
+  if (req.path.includes(".DS_Store")) {console.log("trying to ignore ds store file"); return next() }
+  console.log(`going to copy file from ${ip}:${config.port}${req.path} to ${pathToAsset}`)
+  //client.copyFile(`${ip}:${config.port}${req.path}`, req.headers.Destination = `${localFolder}${req.path}`).then(next()).catch(err => console.log(err))
+  client
+    .stat(decoded)
+    .then(stat => {
+      console.log( `its a ${stat.type} so, presuming thats a file,i might mkdirp ${assetsFolder}`)
+      console.log("is it a file?" + (stat.type === "file"))
+      return ( stat.type === "file" && mkdirp(assetsFolder) //and what if you actually go want to GET a dir?
+        // fs.promises.access(localFolder + require('path').dirname(decoded), fs.constants.R_OK)
+        // .then( _ =>  mkdirp(localFolder + require('path').dirname(decoded)) )//and what if you actually go want to GET a dir?
+        //.catch( err => console.log(err))
+      )
+    })
+    .then(_ => fs.promises.access(pathToAsset, fs.constants.R_OK))
+    .then(_ => {
+      console.log(`${pathToAsset} already exists, the file is local so return that and get outta here`)
+      fs.createReadStream(`${pathToAsset}`).pipe(res)
+      return next()
+    })
+    .catch(_ => {
+      console.log(pathToAsset + " needs copying locally")
+      return client.createReadStream(decoded).pipe(fs.createWriteStream(`${pathToAsset}`).pipe(res))
+    })
+    .then(next())
+    .catch(err => console.log(err))
+})
 
-
-
-       //   .then( data => { 
-       //console.log( "data is " + data)
-       //fs.writeFileSync(`${config[config.localFolder]}${decoded}`, data)
-       //})
- })
-     .then(next())
-     .catch(err => console.log(err))
- })
-//  app.all('*', (req,res) => {
-  //    //req.headers.Authorization = headerAuth
-  //    req.headers.connection = "keep-alive"
-  //    //console.log(req.headers.Authorization)
-  //      console.log(req.headers)
-  //       console.log(req.body)
-  //       console.log(req.method)
-  //       console.log(req.params)
-  //    //console.log("PATH" + req.path)
-  //      //modify the url in any way you want
-  //    //    var newurl = `${config.localIp}:${config.port}${req.path}`
-  //    //  console.log("newurl is " + newurl)
-  //    //  req.pipe(request(newurl)).pipe(res)
-  //    console.log(res.headers)
-  //    console.log(res.method)
-  //    console.log(res.params)
-  //  })
-
+app.use((req, res, next) => {
+  //req.headers.Authorization = headerAuth
+  //req.headers.connection = "keep-alive"
+  //console.log(req.headers.Authorization)
+  //modify the url in any way you want
+  //    var newurl = `${config.localIp}:${config.port}${req.path}`
+  //  console.log("newurl is " + newurl)
+  //  req.pipe(request(newurl)).pipe(res)
+  //  want to print out responses as easily as this:
+  console.log("res header is " + res.headers)
+  console.log("res method is " + res.method)
+  console.log("res params is " + res.params)
+  console.log("res body is " + res.body)
+  next()
+})
 
 //server.afterRequest((arg, next) => {
 //    // Display the method, the URI, the returned status code and the returned message
-//    console.log('>>', arg.request.method, arg.requested.uri, '>', arg.response.statusCode, arg.response.statusMessage);
+//    console.log('>>', arg.request.method, arg.requested.uri, '>', arg.response.statusCode, arg.response.statusMessage)
 //    console.log(arg.request.url)
 //    console.log( arg.request.rawHeaders)
 //    console.log(arg.request.headers )
@@ -124,9 +122,10 @@ app.use(myProxy)
 //    // If available, display the body of the response
 //    console.log(arg.responseBody);
 //    next();
-//});
-app.use(function (err, req, res, next) {
+//})
+//
+app.use(function(err, req, res, next) {
   console.error(err)
-  res.status(500).send('Something broke!')
+  res.status(500).send("Something broke!")
 })
 app.listen(1900)
