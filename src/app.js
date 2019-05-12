@@ -44,7 +44,19 @@ const headerAuth = `Basic ${base64data}`
 
 const ip = config[config.whichIp]
 const localFolder = config[config.localFolder]
-
+function getMethods(obj) {
+  var result = [];
+  for (var id in obj) {
+    try {
+      if (typeof(obj[id]) == "function") {
+        result.push(id + ": " + obj[id].toString());
+      }
+    } catch (err) {
+      result.push(id + ": inaccessible");
+    }
+  }
+  return result;
+}
 const proxyOptions = {
   auth: `${config.user}:${config.pass}`,
   target: `${ip}:${config.port}`,
@@ -59,8 +71,22 @@ const proxyOptions = {
   console.log("res method is " + res.method)
   console.log("res params is " + res.params)
   console.log("res body is " + res.body)
+    //what methods can i call on proxyres then?   console.log("methods are " + console.log(Object.keys(proxyRes)))
   proxyRes.on('data', function (chunk) {
-    console.log(chunk.toString())
+    const contentType = proxyRes.headers['content-type']
+    if (contentType.includes(`xml`) || contentType.includes(`text`) || contentType.includes(`json`)) { console.log(chunk.toString()) }
+    else if (req.method === 'GET') {
+      console.log('GET HAPPENING IN PROXYRES!!!!!')
+const decoded = decodeURIComponent(req.path)
+  const pathToAsset = localFolder + decoded
+  const assetsFolder = localFolder + dirname(decoded)
+      //req.pipe(request(newurl)).pipe(res)
+      //      return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
+      //proxyRes.pipe(fs.createWriteStream(pathToAsset))
+      //TODO: doing this aync consistently corrupts the 7z header of files larger than about 15 meg
+      fs.appendFileSync(pathToAsset, chunk) //, function (err) { if(err) throw err; });  
+      // C:/Users/tony/Desktop/test/Games/Nintendo Games/N64 Games/GoodN64_314_GM/Resident Evil 2.7z
+    }
   })
   }
 }
@@ -118,7 +144,7 @@ app.get("*", (req, res, next) => {
     })
     .catch(_ => {
       console.log(pathToAsset + " needs copying locally")
-      return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
+      //      return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
     })
     .then(next())
     .catch(err => console.log(err))
