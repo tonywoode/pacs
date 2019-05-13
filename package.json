@@ -15,6 +15,7 @@
     "express": "^4.16.4",
     "http-proxy-middleware": "^0.19.1",
     "mkdirp-promise": "^5.0.1",
+    "mkdirpsync": "^0.1.0",
     "request": "^2.88.0",
     "webdav": "^2.5.0",
     "webdav-server": "^2.4.6"
