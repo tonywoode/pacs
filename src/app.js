@@ -78,13 +78,8 @@ const proxyOptions = {
  res params: ${printJson(res.params)}
  res body: ${res.body}
  `)
-      const decoded = decodeURIComponent(req.path)
-      const pathToAsset = path.join(localFolder, decoded)
-    if (req.method === "GET") {
-      const assetsFolder = path.join(localFolder, dirname(decoded))
-      console.log(`make path for get: ${assetsFolder}`)
-      fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
-    }
+    const decoded = decodeURIComponent(req.path)
+    const pathToAsset = path.join(localFolder, decoded)
     //what methods can i call on proxyres then?   console.log("methods are " + console.log(Object.keys(proxyRes)))
     proxyRes.on("data", function(chunk) {
       const contentType = proxyRes.headers["content-type"]
@@ -94,7 +89,13 @@ const proxyOptions = {
         contentType.includes(`json`)
       ) {
         console.log(chunk.toString())
-      } else if (req.method === "GET") {
+      }
+      if (req.method === "GET") {
+        const assetsFolder = path.join(localFolder, dirname(decoded))
+        console.log(`make path for get: ${assetsFolder}`)
+        fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
+        console.log(`you asked me for ${printJson(req.headers)}`)
+        console.log(`here am i sending you ${printJson(proxyRes.headers)}`)
         //const decoded = decodeURIComponent(req.path)
         //const pathToAsset = localFolder + decoded
         //     const assetsFolder = localFolder + dirname(decoded)
