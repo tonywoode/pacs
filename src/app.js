@@ -49,6 +49,26 @@ const ip = config[config.whichIp]
 const localFolder = config[config.localFolder]
 
 const printJson = json => JSON.stringify(json, null, 2)
+let satisfied = false
+let thisTarget = ""
+
+app.get("*", (req, res, next) => {
+  satisfied = false
+  const decoded = decodeURIComponent(req.path)
+  const pathToAsset = path.join(localFolder, decoded)
+  if (fs.existsSync(pathToAsset)) {
+    satisfied = true
+    return fs.createReadStream(pathToAsset).pipe(res)
+  } else {
+    if (thisTarget !== decoded) {//only make a folder on the first get for this asset
+      const assetsFolder = path.join(localFolder, dirname(decoded))
+      console.log(`make path for get: ${assetsFolder}`)
+      fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
+      thisTarget = decoded
+    }
+    next()
+  }
+})
 
 const proxyOptions = {
   auth: `${config.user}:${config.pass}`,
@@ -90,12 +110,9 @@ const proxyOptions = {
       ) {
         console.log(chunk.toString())
       }
-      if (req.method === "GET") {
-        const assetsFolder = path.join(localFolder, dirname(decoded))
-        console.log(`make path for get: ${assetsFolder}`)
-        fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
-        console.log(`you asked me for ${printJson(req.headers)}`)
-        console.log(`here am i sending you ${printJson(proxyRes.headers)}`)
+      if (req.method === "GET" && !satisfied) {
+        //    console.log(`you asked me for ${printJson(req.headers)}`)
+        // console.log(`here am i sending you ${printJson(proxyRes.headers)}`)
         //const decoded = decodeURIComponent(req.path)
         //const pathToAsset = localFolder + decoded
         //     const assetsFolder = localFolder + dirname(decoded)
