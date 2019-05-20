@@ -1,6 +1,7 @@
 "use strict"
 const webdav = require("webdav-server").v2
-const app = require("express")()
+const express = require("express")
+const app = express()
 const request = require("request")
 const proxy = require("http-proxy-middleware")
 const path = require("path")
@@ -51,6 +52,8 @@ const localFolder = config[config.localFolder]
 const printJson = json => JSON.stringify(json, null, 2)
 let satisfied = false
 let thisTarget = ""
+
+//app.use(express.static(localFolder))
 
 app.get("*", (req, res, next) => {
   satisfied = false
@@ -128,23 +131,37 @@ const proxyOptions = {
   }
 }
 
+server.setFileSystem( "", new webdav.PhysicalFileSystem(localFolder))
+
+const myProxy = proxy("/", proxyOptions)
+
 testConnection(client).then(result => {
   console.log("result is " + result)
   if (result === false) {
-    server.setFileSystem(
-      "",
-      new webdav.PhysicalFileSystem(localFolder),
-      console.log("ready")
-    )
     app.use(webdav.extensions.express("", server))
   } else {
     //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
     //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
-    var myProxy = proxy("/", proxyOptions)
     app.use(myProxy)
   }
 })
 
+app.get("/RESETME", (req, res, next) => {
+  console.log('hitme')
+  expressResetter.resetRoutes(app);
+ app.use(webdav.extensions.express("", server))
+next()
+})
+//app.propfind("*", (req, res, next) => {
+//  satisfied = false
+//  const decoded = decodeURIComponent(req.path)
+//  const pathToAsset = path.join(localFolder, decoded)
+//  if (fs.existsSync(pathToAsset)) {
+//    satisfied = true
+//  app.use(myProxy)  
+//  }
+//    next()
+//})
 //app.use((req, res, next) => {
 //  console.log("%s %s", req.method, decodeURIComponent(req.path))
 //  //  console.log("req header: " + JSON.stringify(req.headers, null, 2))
