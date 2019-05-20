@@ -141,6 +141,7 @@ server.beforeRequest((arg, next) => {
     const assetsFolder = path.join(localFolder, dirname(decoded))
     console.log("path to asset is " + pathToAsset)
     if (fs.existsSync(pathToAsset)) {
+      //TODO: test if connection better before waiting on this
       client
         .stat(decoded)
         .then(result => {
@@ -157,16 +158,16 @@ server.beforeRequest((arg, next) => {
           satisfied = true
           if ( remoteSize && remoteSize > stat.size) { 
             console.log( "remote file larger " + remoteSize + " vs " + stat.size)
-            const outStream = fs.createWriteStream(pathToAsset)
-            client.createReadStream(decoded).pipe(outStream)
-            outStream.on('end', {
+           client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))
+            .then( result => {
               arg.setCode(200)
-              outStream.pipe(responseBody)
+              result.pipe(arg.response)
               arg.exit()
             })
           } else {
             arg.setCode(200)
-            fs.createReadStream(pathToAsset).pipe(responseBody)
+            console.log((arg.response))
+            fs.createReadStream(pathToAsset).pipe(arg.response)
             arg.exit() 
           }
 
