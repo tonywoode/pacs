@@ -159,10 +159,15 @@ server.beforeRequest((arg, next) => {
             console.log( "remote file larger " + remoteSize + " vs " + stat.size)
             const outStream = fs.createWriteStream(pathToAsset)
             client.createReadStream(decoded).pipe(outStream)
+            outStream.on('end', {
+              arg.setCode(200)
+              outStream.pipe(responseBody)
+              arg.exit()
+            })
           } else {
             arg.setCode(200)
-            arg.responseBody = fs.readFileSync(pathToAsset)
-           arg.exit() 
+            fs.createReadStream(pathToAsset).pipe(responseBody)
+            arg.exit() 
           }
 
         })
