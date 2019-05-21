@@ -134,7 +134,19 @@ server.beforeRequest((arg, next) => {
   console.log("response headers are " + printJson(arg.response.getHeaders()))
   console.log("response body is " + arg.responseBody)
 
+  //  if (arg.request.method === "PROPFIND") {
+  //    const decoded = decodeURIComponent(arg.request.path)
+  //    const pathToAsset = path.join(localFolder, decoded)
+  //    if (fs.existsSync(pathToAsset)) {
+  //      console.log("PROPFIND on existent path: " + pathToAsset)
+  //    } else {
+  //      console.log("PROPFIND on NON existent path: " + pathToAsset)
+  //      fs.closeSync(fs.openSync(pathToAsset, 'w'));
+  //    }
+  //  }
+  //
   if (arg.request.method === "GET") {
+    console.log("WE DID A GET")
     satisfied = false
     const decoded = decodeURIComponent(arg.request.path)
     const pathToAsset = path.join(localFolder, decoded)
@@ -146,34 +158,41 @@ server.beforeRequest((arg, next) => {
         .stat(decoded)
         .then(result => {
           console.log(result)
-         const remoteSize = result.size
+          const remoteSize = result.size
           console.log("remote size is " + remoteSize)
           return remoteSize
         })
-        .catch(function(err) { throw err })
-        .then( remoteSize => {
+                .then(remoteSize => {
           const stat = fs.lstatSync(pathToAsset)
           console.log("stat of that existing file is " + printJson(stat))
           console.log("size of that existing file is " + printJson(stat.size))
           satisfied = true
-          if ( remoteSize && remoteSize > stat.size) { 
-            console.log( "remote file larger " + remoteSize + " vs " + stat.size)
-           client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))
-            .then( result => {
-              arg.setCode(200)
-              result.pipe(arg.response)
-              arg.exit()
-            })
+          if (remoteSize && remoteSize > stat.size) {
+            console.log("remote file larger " + remoteSize + " vs " + stat.size)
+            client
+              .createReadStream(decoded)
+              .pipe(fs.createWriteStream(pathToAsset))
+              .then(result => {
+                arg.setCode(200)
+                return
+                //result.pipe(arg.response) //no, the webdav server will return it
+                //arg.exit()
+              })
           } else {
+            console.log("the file exists and is good, the webdav serer will return it")
             arg.setCode(200)
-            console.log((arg.response))
-            fs.createReadStream(pathToAsset).pipe(arg.response)
-            arg.exit() 
+            console.log(arg.response)
+            //arg.exit()
           }
-
         })
+.catch(function(err) {
+          throw err
+        })
+
       // next()
     } else {
+      //we need to make a folder, and get the file
+      console.log(decoded + " doesn't exist locally, so go get it")
       if (thisTarget !== decoded) {
         //only make a folder on the first get for this asset
         const assetsFolder = path.join(localFolder, dirname(decoded))
@@ -189,13 +208,16 @@ server.beforeRequest((arg, next) => {
           console.log(result)
           size = result.size
           console.log("size is " + size)
+          client
+            .createReadStream(decoded)
+            .pipe(fs.createWriteStream(pathToAsset))
         })
         .catch(function(err) {
           throw err
         })
     }
-    //next()
   }
+  next()
 })
 
 app.use(function(err, req, res, next) {
