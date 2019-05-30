@@ -62,7 +62,17 @@ app.get("*", (req, res, next) => {
   const pathToAsset = path.join(localFolder, decoded)
   if (fs.existsSync(pathToAsset)) {
     satisfied = true
-    return fs.createReadStream(pathToAsset).pipe(res)
+    console.log("file exists locally")
+    // const stream = fs.createReadStream(pathToAsset).pipe(res)
+    //stream.on('end', next())
+    const options = ''
+    res.sendFile(pathToAsset, options, function (err) {
+    if (err) {
+      next(err);
+    } else {
+      console.log('Sent:', pathToAsset);
+    }
+  });
   } else {
     if (thisTarget !== decoded) {//only make a folder on the first get for this asset
       const assetsFolder = path.join(localFolder, dirname(decoded))
