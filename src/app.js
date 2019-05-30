@@ -13,6 +13,16 @@ const mkdirp = require("mkdirp-promise")
 const { dirname } = require("path")
 const config = require("../config.json")
 const util = require("util")
+const mkdirpsync = require("mkdirpsync")
+// we must enable persistent connections in node, as underlying this all is the
+// http lib's default of http 1.0-like new connections for each request
+// https://stackoverflow.com/a/38614839/3536094
+const keepAliveAgent = new http.Agent({ keepAlive: true })
+
+const testConnection = require("./testConnection")(config)
+const webdavClient = require("webdav")
+const client = require("./client")(webdavClient)(config)(keepAliveAgent)
+
 
 //tee output to console and to a logfile https://stackoverflow.com/a/30578473/3536094
 const logFile = "./pacs_logfile.txt"
@@ -30,16 +40,6 @@ console.error = (...args) => {
   process.stderr.write(text)
 }
 
-// we must enable persistent connections in node, as underlying this all is the
-// http lib's default of http 1.0-like new connections for each request
-// https://stackoverflow.com/a/38614839/3536094
-const keepAliveAgent = new http.Agent({ keepAlive: true })
-const testConnection = require("./testConnection")(config)
-
-const webdavClient = require("webdav")
-const client = require("./client")(webdavClient)(config)(keepAliveAgent)
-const mkdirpsync = require("mkdirpsync")
-
 //standard basic auth conversion
 const { user, pass } = config
 const data = `${user}:${pass}`
@@ -53,6 +53,7 @@ const printJson = json => JSON.stringify(json, null, 2)
 let satisfied = false
 let thisTarget = ""
 
+//whilst it may not be suitable, it should be possible to do this
 //app.use(express.static(localFolder))
 
 app.get("*", (req, res, next) => {
@@ -103,7 +104,7 @@ const proxyOptions = {
  `)
     const decoded = decodeURIComponent(req.path)
     const pathToAsset = path.join(localFolder, decoded)
-    //what methods can i call on proxyres then?   console.log("methods are " + console.log(Object.keys(proxyRes)))
+    //what methods can i call on proxyres?   console.log("members are " + console.log(Object.keys(proxyRes)))
     proxyRes.on("data", function(chunk) {
       const contentType = proxyRes.headers["content-type"]
       if (
@@ -114,15 +115,16 @@ const proxyOptions = {
         console.log(chunk.toString())
       }
       if (req.method === "GET" && !satisfied) {
-        //    console.log(`you asked me for ${printJson(req.headers)}`)
+        // console.log(`you asked me for ${printJson(req.headers)}`)
         // console.log(`here am i sending you ${printJson(proxyRes.headers)}`)
-        //const decoded = decodeURIComponent(req.path)
-        //const pathToAsset = localFolder + decoded
-        //     const assetsFolder = localFolder + dirname(decoded)
+        // const decoded = decodeURIComponent(req.path)
+        // const pathToAsset = localFolder + decoded
+        // const assetsFolder = localFolder + dirname(decoded)
 
         console.log("GET HAPPENING IN PROXYRES FOR " + decoded)
-        //req.pipe(request(newurl)).pipe(res)
-        //      return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
+        // TODO: sometimes, a click on a single rom in a romdata results in multiple GETs for seemingly every file in a folder
+        // req.pipe(request(newurl)).pipe(res)
+        // return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
         //proxyRes.pipe(fs.createWriteStream(pathToAsset))
         //TODO: doing this aync consistently corrupts the 7z header of files larger than about 15 meg
         fs.appendFileSync(pathToAsset, chunk) //, function (err) { if(err) throw err; });
