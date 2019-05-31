@@ -56,23 +56,16 @@ let thisTarget = ""
 //whilst it may not be suitable, it should be possible to do this
 //app.use(express.static(localFolder))
 
+// either retrieve the file locally, or make a folder for the file we'll need to get
 app.get("*", (req, res, next) => {
   satisfied = false
   const decoded = decodeURIComponent(req.path)
   const pathToAsset = path.join(localFolder, decoded)
   if (fs.existsSync(pathToAsset)) {
     satisfied = true
-    console.log("file exists locally")
-    // const stream = fs.createReadStream(pathToAsset).pipe(res)
-    //stream.on('end', next())
+    console.log(`${pathToAsset} exists locally`)
     const options = ''
-    res.sendFile(pathToAsset, options, function (err) {
-    if (err) {
-      next(err);
-    } else {
-      console.log('Sent:', pathToAsset);
-    }
-  });
+    res.sendFile(pathToAsset, options, err => err? next(err) : console.log('Sending local file:', pathToAsset))
   } else {
     if (thisTarget !== decoded) {//only make a folder on the first get for this asset
       const assetsFolder = path.join(localFolder, dirname(decoded))
