@@ -52,17 +52,28 @@ const localFolder = config[config.localFolder]
 const printJson = json => JSON.stringify(json, null, 2)
 let satisfied = false
 let thisTarget = ""
+let thisFileIsNotLocal = false
 
 //whilst it may not be suitable, it should be possible to do this
 //app.use(express.static(localFolder))
 
+app.use((req, res, next) => {
+  console.log("%s %s", req.method, decodeURIComponent(req.path))
+  console.log("req header: " + JSON.stringify(req.headers, null, 2))
+  console.log("req params: " + JSON.stringify(req.params, null, 2))
+  console.log("req body: " + req.body)
+  next()
+})
+
 // either retrieve the file locally, or make a folder for the file we'll need to get
 app.get("*", (req, res, next) => {
+  if (thisFileIsNotLocal = false) {
   satisfied = false
   const decoded = decodeURIComponent(req.path)
   const pathToAsset = path.join(localFolder, decoded)
   fs.access(pathToAsset, fs.constants.F_OK, err => {
     if (err) { //remote path doesn't exist locally, make folder to hold it
+        thisFileIsNotLocal = true
       if (thisTarget !== decoded) {
         //only make a folder on the first get for this asset
         const assetsFolder = path.join(localFolder, dirname(decoded))
@@ -88,6 +99,7 @@ app.get("*", (req, res, next) => {
       })
     }
   })
+  }
 })
 
 const proxyOptions = {
@@ -136,7 +148,6 @@ const proxyOptions = {
         // const decoded = decodeURIComponent(req.path)
         // const pathToAsset = localFolder + decoded
         // const assetsFolder = localFolder + dirname(decoded)
-
         console.log("GET HAPPENING IN PROXYRES FOR " + decoded)
         // TODO: sometimes, a click on a single rom in a romdata results in multiple GETs for seemingly every file in a folder
         // req.pipe(request(newurl)).pipe(res)
@@ -181,25 +192,13 @@ app.get("/RESETME", (req, res, next) => {
 //  }
 //    next()
 //})
-//app.use((req, res, next) => {
-//  console.log("%s %s", req.method, decodeURIComponent(req.path))
-//  //  console.log("req header: " + JSON.stringify(req.headers, null, 2))
-//  //console.log("req params: " + JSON.stringify(req.params, null, 2))
-//  //console.log("req body: " + req.body)
-//  next()
-//})
 
-//ignore mame assets for now
-//app.propfind("/Games/MAME", (req, res, next) => res.status(204).send())
+
 
 //app.get("*", (req, res, next) => {
 //  const decoded = decodeURIComponent(req.path)
 //  const pathToAsset = localFolder + decoded
 //  const assetsFolder = localFolder + dirname(decoded)
-//  if (req.path.includes(".DS_Store")) {
-//    console.log("trying to ignore ds store file")
-//    return next()
-//  }
 //  next()
 //  console.log(
 //    `going to copy file from ${ip}:${config.port}${req.path} to ${pathToAsset}`
