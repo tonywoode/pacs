@@ -21,6 +21,7 @@ const { dirname } = require("path")
 const config = require("../config.json")
 const util = require("util")
 const mkdirpsync = require("mkdirpsync")
+
 // we must enable persistent connections in node, as underlying this all is the
 // http lib's default of http 1.0-like new connections for each request
 // https://stackoverflow.com/a/38614839/3536094
@@ -50,8 +51,8 @@ const ip = config[config.whichIp]
 const localFolder = config[config.localFolder]
 
 const printJson = json => JSON.stringify(json, null, 2)
-let satisfied = false
 let thisTarget = ""
+//the real imp would read that nasty old xml for the filesize, and if its not the same, we need to get it locally
 let thisFileIsNotLocal = false
 
 //whilst it may not be suitable, it should be possible to do this
@@ -68,7 +69,6 @@ app.use((req, res, next) => {
 // either retrieve the file locally, or make a folder for the file we'll need to get
 app.get("*", (req, res, next) => {
   if (thisFileIsNotLocal = false) {
-  satisfied = false
   const decoded = decodeURIComponent(req.path)
   const pathToAsset = path.join(localFolder, decoded)
   fs.access(pathToAsset, fs.constants.F_OK, err => {
@@ -83,7 +83,6 @@ app.get("*", (req, res, next) => {
       }
       next()
     } else {
-      satisfied = true
       //sendFile IS streaming, but also setting content type etc: https://stackoverflow.com/a/37400161/3536094
       res.sendFile(pathToAsset, "", err => {
         if (err) {
@@ -142,12 +141,8 @@ const proxyOptions = {
       ) {
         console.log(chunk.toString())
       }
-      if (req.method === "GET" && !satisfied) {
-        // console.log(`you asked me for ${printJson(req.headers)}`)
-        // console.log(`here am i sending you ${printJson(proxyRes.headers)}`)
-        // const decoded = decodeURIComponent(req.path)
-        // const pathToAsset = localFolder + decoded
-        // const assetsFolder = localFolder + dirname(decoded)
+      if (req.method === "GET" && thisFileIsNotLocal) {
+        // console.log(`requested ${printJson(req.headers)},sending you ${printJson(proxyRes.headers)}`)
         console.log("GET HAPPENING IN PROXYRES FOR " + decoded)
         // TODO: sometimes, a click on a single rom in a romdata results in multiple GETs for seemingly every file in a folder
         // req.pipe(request(newurl)).pipe(res)
@@ -176,24 +171,31 @@ testConnection(client).then(result => {
   )
 })
 
+//really we should switch imp whenever the connection is down
 app.get("/RESETME", (req, res, next) => {
   console.log("hitme")
   expressResetter.resetRoutes(app)
   app.use(webdav.extensions.express("", server))
   next()
 })
+
 //app.propfind("*", (req, res, next) => {
-//  satisfied = false
 //  const decoded = decodeURIComponent(req.path)
 //  const pathToAsset = path.join(localFolder, decoded)
 //  if (fs.existsSync(pathToAsset)) {
-//    satisfied = true
 //  app.use(myProxy)
 //  }
 //    next()
 //})
 
+app.use(function(err, req, res, next) {
+  console.error(err)
+  res.status(500).send("Something broke!")
+  next()
+})
 
+app.listen(1900)
+//this is the imp before i started using the proxy, so i was using another client to get stats etc
 
 //app.get("*", (req, res, next) => {
 //  const decoded = decodeURIComponent(req.path)
@@ -252,10 +254,4 @@ app.get("/RESETME", (req, res, next) => {
 //  console.log("newurl is " + newurl)
 //  req.pipe(request(newurl)).pipe(res)
 
-app.use(function(err, req, res, next) {
-  console.error(err)
-  res.status(500).send("Something broke!")
-  next()
-})
 
-app.listen(1900)
