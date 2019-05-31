@@ -18,6 +18,13 @@ body is
   </body></html>
 
 
+//ignore mame assets for now
+//app.propfind("/Games/MAME", (req, res, next) => res.status(204).send())
+
+//  if (req.path.includes(".DS_Store")) {
+//    console.log("trying to ignore ds store file")
+//    return next()
+//  }
 
 
 
