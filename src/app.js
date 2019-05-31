@@ -8,6 +8,13 @@ const path = require("path")
 const http = require("http")
 const fs = require("fs")
 const server = new webdav.WebDAVServer()
+//const server = new webdav.WebDAVServer({
+//  port: 1900,
+//  https: {
+//    key: fs.readFileSync('./certs/key.pem'),
+//    cert: fs.readFileSync('./certs/cert.pem')
+//  }
+//})
 const { promisify } = require("util")
 const mkdirp = require("mkdirp-promise")
 const { dirname } = require("path")
@@ -39,12 +46,6 @@ console.error = (...args) => {
   process.stderr.write(text)
 }
 
-//standard basic auth conversion
-const { user, pass } = config
-const data = `${user}:${pass}`
-const base64data = Buffer.from(data).toString("base64")
-const headerAuth = `Basic ${base64data}`
-
 const ip = config[config.whichIp]
 const localFolder = config[config.localFolder]
 
@@ -72,6 +73,7 @@ app.get("*", (req, res, next) => {
       next()
     } else {
       satisfied = true
+      //sendFile IS streaming, but also setting content type etc: https://stackoverflow.com/a/37400161/3536094
       res.sendFile(pathToAsset, "", err => {
         if (err) {
           next(err)
@@ -152,14 +154,15 @@ server.setFileSystem("", new webdav.PhysicalFileSystem(localFolder))
 const myProxy = proxy("/", proxyOptions)
 
 testConnection(client).then(result => {
-  console.log("result is " + result)
-  if (result === false) {
-    app.use(webdav.extensions.express("", server))
-  } else {
-    //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
+  result ? ( 
+    console.log("succeeded connecting to NAS folder"),
+     //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
     //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
     app.use(myProxy)
-  }
+  ) : (
+    console.log("couldn't connect to NAS, so using local folder"),
+    app.use(webdav.extensions.express("", server))
+  )
 })
 
 app.get("/RESETME", (req, res, next) => {
@@ -233,17 +236,6 @@ app.get("/RESETME", (req, res, next) => {
 //    .catch(err => console.log(err))
 //})
 
-//app.use((req, res, next) => {
-//req.headers.Authorization = headerAuth
-//req.headers.connection = "keep-alive"
-//console.log(req.headers.Authorization)
-//modify the url in any way you want
-//    var newurl = `${config.localIp}:${config.port}${req.path}`
-//  console.log("newurl is " + newurl)
-//  req.pipe(request(newurl)).pipe(res)
-//next()
-//})
-
 //server.afterRequest((arg, next) => {
 //    // Display the method, the URI, the returned status code and the returned message
 //    console.log('>>', arg.request.method, arg.requested.uri, '>', arg.response.statusCode, arg.response.statusMessage)
@@ -256,6 +248,11 @@ app.get("/RESETME", (req, res, next) => {
 //    next();
 //})
 //
+//the infamous one-line proxy
+//    var newurl = `${config.localIp}:${config.port}${req.path}`
+//  console.log("newurl is " + newurl)
+//  req.pipe(request(newurl)).pipe(res)
+
 app.use(function(err, req, res, next) {
   console.error(err)
   res.status(500).send("Something broke!")
