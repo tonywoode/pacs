@@ -11,3 +11,10 @@ PACS is a local webdav server. We'll need to use a webDAV client to map it. Comm
 
   * **Increase the filesize limit on transfers to the maximum available** 
   Microsoft have a very silly default 50MB largest-filesize limit, WebDAV allows a maximum of 4GB. The solution, as described [here](https://answers.microsoft.com/en-us/ie/forum/ie8-windows_xp/error-0x800700df-the-file-size-exceeds-the-limit/d208bba6-920c-4639-bd45-f345f462934f) and [here](https://community.wd.com/t/error-0x800700df-the-file-size-exceeds-the-limit-allowed/91973/4) is to regedit to `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WebClient\Parameters\FileSizeLimitInBytes` and change the decimal value to `429496729`, and restart
+
+  * allow folders with a large number of files to satsfy a PROPFIND using the windows client - WIP!
+  
+# MacOS
+The MaxOS native WebDav client is cripplingly slow by default, this may be due to initating a new TCP connection for every request. i didn't get far enough in my investigations to check if using PACS would cure this (it certainly does for the Windows client!). Another compounding factor is the constant propfinds for _DS.Store-type files, which can cause HTTP-hangups. Its highly advisable to use a different client 
+
+
