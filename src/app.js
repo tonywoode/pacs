@@ -23,7 +23,6 @@ const testConnection = require("./testConnection")(config)
 const webdavClient = require("webdav")
 const client = require("./client")(webdavClient)(config)(keepAliveAgent)
 
-
 //tee output to console and to a logfile https://stackoverflow.com/a/30578473/3536094
 const logFile = "./pacs_logfile.txt"
 const logStream = fs.createWriteStream(logFile)
@@ -61,20 +60,32 @@ app.get("*", (req, res, next) => {
   satisfied = false
   const decoded = decodeURIComponent(req.path)
   const pathToAsset = path.join(localFolder, decoded)
-  if (fs.existsSync(pathToAsset)) {
-    satisfied = true
-    console.log(`${pathToAsset} exists locally`)
-    const options = ''
-    res.sendFile(pathToAsset, options, err => err? next(err) : console.log('Sending local file:', pathToAsset))
-  } else {
-    if (thisTarget !== decoded) {//only make a folder on the first get for this asset
-      const assetsFolder = path.join(localFolder, dirname(decoded))
-      console.log(`make path for get: ${assetsFolder}`)
-      fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
-      thisTarget = decoded
+  fs.access(pathToAsset, fs.constants.F_OK, err => {
+    if (err) { //remote path doesn't exist locally, make folder to hold it
+      if (thisTarget !== decoded) {
+        //only make a folder on the first get for this asset
+        const assetsFolder = path.join(localFolder, dirname(decoded))
+        console.log(`make path for get: ${assetsFolder}`)
+        fs.existsSync(assetsFolder) || mkdirpsync(assetsFolder)
+        thisTarget = decoded
+      }
+      next()
+    } else {
+      satisfied = true
+      res.sendFile(pathToAsset, "", err => {
+        if (err) {
+          next(err)
+        } else {
+          if (thisTarget !== decoded) {
+            //only tell me on the first get
+            console.log(`${decoded} exists locally`)
+            console.log("Sending local file:", pathToAsset)
+            thisTarget = decoded
+          }
+        }
+      })
     }
-    next()
-  }
+  })
 })
 
 const proxyOptions = {
@@ -136,7 +147,7 @@ const proxyOptions = {
   }
 }
 
-server.setFileSystem( "", new webdav.PhysicalFileSystem(localFolder))
+server.setFileSystem("", new webdav.PhysicalFileSystem(localFolder))
 
 const myProxy = proxy("/", proxyOptions)
 
@@ -152,10 +163,10 @@ testConnection(client).then(result => {
 })
 
 app.get("/RESETME", (req, res, next) => {
-  console.log('hitme')
-  expressResetter.resetRoutes(app);
- app.use(webdav.extensions.express("", server))
-next()
+  console.log("hitme")
+  expressResetter.resetRoutes(app)
+  app.use(webdav.extensions.express("", server))
+  next()
 })
 //app.propfind("*", (req, res, next) => {
 //  satisfied = false
@@ -163,7 +174,7 @@ next()
 //  const pathToAsset = path.join(localFolder, decoded)
 //  if (fs.existsSync(pathToAsset)) {
 //    satisfied = true
-//  app.use(myProxy)  
+//  app.use(myProxy)
 //  }
 //    next()
 //})
