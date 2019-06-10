@@ -1,5 +1,33 @@
 # Proxy and Cache Tool
 
+![PACS usage diagram](PACS.png?raw=true "PACS usage diagram")
+
+The idea behind this unfinished project was to provide a WebDAV server to a retro frontend, transparently, so that files that don't exist on the local machine can be retrieved as they are needed. 
+
+Problems:
+
+### Forward PACS (app.js)
+Its a priority to protect the ‘local browsing’ experience of a frontend. This isn’t possible with ‘forward-pacs’ (where we look to the remote folder first, but load the local version of a file if it exists when requested) since it must PROPFIND every single thing (assets like screenshots are tightly bound to game sets a lot of the time (the assets will be in a bundle of files with the game). Romdata and asset lookups make browsing very slow.  A ‘remote only’ experience when browsing games in a frontend isn't appropriate, and 'forward pacs' is very much like 'remote only' up to the point of playing games. More specifically, the frontend experience is awful due to:
+
+  * number of PROPFINDs - whole paths are individually subject to PROPFINDs at every level to find out whether a single file exists in the leaf
+  * verbosity of PROPFINDs - often in bad connection situations, we lookup screenshots and other assets from multiple massive folders, we retry and so on.
+  * HTTP 1.1 we must reuse the TCP connection or things are too slow (particularly on macOS), but are then subject to sync blocking calls
+  * the nature of WebDAV XML - to get the information needed is quite a painful process due to the age of the xml forms vs modern parsers. The PROPFIND xmls size, and retrieving them at every level of the filepath does not engender WebDAV
+
+### Reverse PACS (reverseApp.js)
+Preferred option
+
+  * only looking remotely if a file doesn't exist locally is non-viable: largely because of PROPFINDs in directories: consider: if the local directory doesn’t contain the file you want, on many clients the PROPFIND will fail. Indeed NetDrive will not be able to tell anything downstream of itself what file it was looking for, since it will just fail if a PROPFIND on the parent dir states the file doesn't exist. NetDrive had this to say about that behaviour:
+
+  > As you might have already noticed, NetDrive supports variety of protocols including WebDAV. So it is implemented to serve protocols that are not supposed themselves to retrieve information of a single file.
+
+Which means we cannot 'reverse-pacs' without either pre-caching directory information (PACS was supposed to negate that need, which forms part of my current solution) or modding our frontend, since only the frontend knows what files its asking for. Reverse-pacs requires some solution like a 1kb file to be made by the frontend, after it mkdirp’s the correct path, in order to satisfy a parent-dir PROPFIND that a path exists. Otherwise, how can web-clients be made aware of the file that we want to GET from the remote store?
+
+  * The variability and difference between different WebDAV clients also became a major concern - the idea was to make an Open Source tool that could be independent of any particular client requirements: but differences in the way the clients PROPFIND and GET, multiple issues with Windows’ and Mac WebDAV clients, means we need to get uncomfortably involved. Other examples include the number of registry changes needed to make it ‘compatible’ with even bare HTTP with sensibly-sized files, and folders with large numbers of files (like the MAME folders we need this tool to read) simply will not look up on the Windows WebDav client (a problem I left unresolved). Testing was a major problem due to this, how do you sensibly produce tests when the OS client is a fundamental part
+
+### General
+
+  *  we're too close to a particular cloud-file implementation: the work done so far will only facilitate WebDAV folders over HTTP, there’s a lot of work to go to then allow for HTTPS, SSL, FTP/FTPS, SFTP, VPN, and I realised that it shouldn't be my problem! In order to help users with their retro-games collections, its far better to leave the user to provide a remote and a local folder path to some tool, that then uses the file system of the user’s machine to ensure that files are sycned before use, by tying into the frontend. This puts the onus on other people to sort out how they best make files available, which is a better long-term plan, one example: there is a hard 4GB limit on file tranferal over WebDAV. So I decided instead to make a frontend tool that would compare folders.
 # Installation
 
 # Windows
