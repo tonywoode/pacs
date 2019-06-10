@@ -4,7 +4,7 @@
 
 The idea behind this unfinished project was to provide a WebDAV server to a retro frontend, transparently, so that files that don't exist on the local machine can be retrieved as they are needed. 
 
-Problems:
+## Findings
 
 ### Forward PACS (app.js)
 Its a priority to protect the ‘local browsing’ experience of a frontend. This isn’t possible with ‘forward-pacs’ (where we look to the remote folder first, but load the local version of a file if it exists when requested) since it must PROPFIND every single thing (assets like screenshots are tightly bound to game sets a lot of the time (the assets will be in a bundle of files with the game). Romdata and asset lookups make browsing very slow.  A ‘remote only’ experience when browsing games in a frontend isn't appropriate, and 'forward pacs' is very much like 'remote only' up to the point of playing games. More specifically, the frontend experience is awful due to:
