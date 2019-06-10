@@ -1,4 +1,11 @@
 "use strict"
+
+/*
+ * After some time working on this, I came across https://www.npmjs.com/package/http-proxy-cache-lf
+ *   which may suit instead of the middleware below......note not express though
+ *   also, whilst it may not be suitable, it should be at least possible to app.use(express.static(localFolder))
+ */   
+
 const webdav = require("webdav-server").v2
 const express = require("express")
 const app = express()
@@ -21,7 +28,7 @@ const { dirname } = require("path")
 const config = require("../config.json")
 const util = require("util")
 const mkdirpsync = require("mkdirpsync")
-
+const os = require("os")
 // we must enable persistent connections in node, as underlying this all is the
 // http lib's default of http 1.0-like new connections for each request
 // https://stackoverflow.com/a/38614839/3536094
@@ -48,15 +55,13 @@ console.error = (...args) => {
 }
 
 const ip = config[config.whichIp]
-const localFolder = config[config.localFolder]
-
+const platform = os.platform()
+const localFolder = platform === "win32"? config.localFolderWin : config.localFolderNix
 const printJson = json => JSON.stringify(json, null, 2)
+//real imp needs to read the filesize, and if its not the same, we need to get it locally
+//obv this current solution is only going to work for the first file requested!
 let thisTarget = ""
-//the real imp would read that nasty old xml for the filesize, and if its not the same, we need to get it locally
-let thisFileIsNotLocal = false
 
-//whilst it may not be suitable, it should be possible to do this
-//app.use(express.static(localFolder))
 
 app.use((req, res, next) => {
   console.log("%s %s", req.method, decodeURIComponent(req.path))
@@ -67,13 +72,12 @@ app.use((req, res, next) => {
 })
 
 // either retrieve the file locally, or make a folder for the file we'll need to get
+// this part works well, comment out to see issue with GET below
 app.get("*", (req, res, next) => {
-  if (thisFileIsNotLocal = false) {
   const decoded = decodeURIComponent(req.path)
   const pathToAsset = path.join(localFolder, decoded)
   fs.access(pathToAsset, fs.constants.F_OK, err => {
     if (err) { //remote path doesn't exist locally, make folder to hold it
-        thisFileIsNotLocal = true
       if (thisTarget !== decoded) {
         //only make a folder on the first get for this asset
         const assetsFolder = path.join(localFolder, dirname(decoded))
@@ -98,7 +102,6 @@ app.get("*", (req, res, next) => {
       })
     }
   })
-  }
 })
 
 const proxyOptions = {
@@ -106,6 +109,13 @@ const proxyOptions = {
   target: `${ip}:${config.port}`,
   agent: keepAliveAgent,
   logLevel: "debug",
+  onProxyReq: (proxyReq, req, res) => {
+      // add custom header to request
+    // TODO: though you can see these being set in the stream, they don't seem to be received / acted upon
+       proxyReq.setHeader('cache-control', 'no-cache')
+       proxyReq.setHeader('pragma', 'no-cache')
+    console.log(proxyReq)
+  },
   onProxyRes: (proxyRes, req, res) => {
     console.log(`
 *********
@@ -132,6 +142,10 @@ const proxyOptions = {
     const decoded = decodeURIComponent(req.path)
     const pathToAsset = path.join(localFolder, decoded)
     //what methods can i call on proxyres?   console.log("members are " + console.log(Object.keys(proxyRes)))
+    if (req.method === "GET"){
+      //console.log("path to asset is " + pathToAsset)
+      //proxyRes.pipe(fs.createWriteStream(pathToAsset), {'flags': 'a'})
+    }
     proxyRes.on("data", function(chunk) {
       const contentType = proxyRes.headers["content-type"]
       if (
@@ -141,20 +155,41 @@ const proxyOptions = {
       ) {
         console.log(chunk.toString())
       }
-      if (req.method === "GET" && thisFileIsNotLocal) {
-        // console.log(`requested ${printJson(req.headers)},sending you ${printJson(proxyRes.headers)}`)
+      if (req.method === "GET") {
+        /* Don't try resuming content atm, that's quite difficult when proxying:
+         *
+         *  if its a get
+         *     if the content-range of the proxy response shows /^bytes 0-/, 
+         *       or if the reqeust included “cache-control”: "no-cache"
+         *         if the file exists in the local store
+         *           and its filesize equals that on the server
+         *            return that file
+         *     else if the filesize is not equal on the local store (as long as the file isn’t 0 bytes on the server)
+         *       delete and make sure to run this next 
+         *        check again if the file exsts, if the file does not exist
+         *        and if the folder path doesn’t exist on the source
+         *        make the folder path
+         *     begin the transfer
+         */
         console.log("GET HAPPENING IN PROXYRES FOR " + decoded)
-        // TODO: sometimes, a click on a single rom in a romdata results in multiple GETs for seemingly every file in a folder
+        // TODO: sometimes, a click on a single rom in a romdata results in multiple GETs for seemingly every file in a folder, irrespective of WebDAV client.
         // req.pipe(request(newurl)).pipe(res)
-        // return client.createReadStream(decoded).pipe(fs.createWriteStream(pathToAsset))//.pipe(res))//that was a bad idea!
-        //proxyRes.pipe(fs.createWriteStream(pathToAsset))
-        //TODO: doing this aync consistently corrupts the 7z header of files larger than about 15 meg
-        fs.appendFileSync(pathToAsset, chunk) //, function (err) { if(err) throw err; });
+        proxyRes.pipe(fs.createWriteStream(pathToAsset))
+        //proxyRes.sendFile(pathToAsset)
+
+        //    const stream =         fs.appendFileSync(pathToAsset, chunk) //, function (err) { if(err) throw err; });
+        //stream.on("end", function() {
+        // maybe, or maybe not, we should pipe the file as a stream to the client once we're finished downlaoding
+          // problem is, that's not how some GETs are working, some are (probably incorrectly) live-loading the file from its store,
+          // how could we enforce always downloading?!? Otherwise, the below aren't helping
+            //fs.createReadStream(pathToAsset).pipe(res)
+        //})
       }
     })
   }
 }
 
+//TODO: these are exposed here as we really should check the connection is still up at every operation, either directly like this or indirectly
 server.setFileSystem("", new webdav.PhysicalFileSystem(localFolder))
 
 const myProxy = proxy("/", proxyOptions)
@@ -162,6 +197,7 @@ const myProxy = proxy("/", proxyOptions)
 testConnection(client).then(result => {
   result ? ( 
     console.log("succeeded connecting to NAS folder"),
+    console.log("local folder is " + localFolder),
      //after a while coping with connection reuse issues piping request, this option reuses connections correctly, at least with netdrive....
     //https://stackoverflow.com/questions/10435407/proxy-with-express-js/16924410
     app.use(myProxy)
@@ -173,7 +209,7 @@ testConnection(client).then(result => {
 
 //really we should switch imp whenever the connection is down
 app.get("/RESETME", (req, res, next) => {
-  console.log("hitme")
+  console.log("Resetting Provider")
   expressResetter.resetRoutes(app)
   app.use(webdav.extensions.express("", server))
   next()
