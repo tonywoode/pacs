@@ -27,7 +27,7 @@ Which means we cannot 'reverse-pacs' without either pre-caching directory inform
 
 ### General
 
-  *  we're too close to a particular cloud-file implementation: the work done so far will only facilitate WebDAV folders over HTTP, there’s a lot of work to go to then allow for HTTPS, SSL, FTP/FTPS, SFTP, VPN, and I realised that it shouldn't be my problem! In order to help users with their retro-games collections, its far better to leave the user to provide a remote and a local folder path to some tool, that then uses the file system of the user’s machine to ensure that files are sycned before use, by tying into the frontend. This puts the onus on other people to sort out how they best make files available, which is a better long-term plan, one example: there is a hard 4GB limit on file tranferal over WebDAV. So I decided instead to make a frontend tool that would compare folders.
+  *  we're too close to a particular cloud-file implementation: the work done so far will only facilitate WebDAV folders over HTTP, there’s a lot of work to go to then allow for HTTPS, SSL, FTP/FTPS, SFTP, VPN, and I realised that it shouldn't be my problem! In order to help users with their retro-games collections, its far better to leave the user to provide a remote and a local folder path to some tool, that then uses the file system of the user’s machine to ensure that files are sycned before use, by tying into the frontend. This puts the onus on other people to sort out how they best make files available, which is a better long-term plan, one example: there is a hard 4GB limit on file transferral over WebDAV. So I decided instead to make a frontend tool that would compare folders.
 # Installation
 
 # Windows
